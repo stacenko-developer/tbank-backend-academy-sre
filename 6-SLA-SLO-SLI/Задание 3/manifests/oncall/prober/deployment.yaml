@@ -1,0 +1,89 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oncall-prober
+  namespace: st-ab5-statsenko
+  labels:
+    app.kubernetes.io/name: oncall-prober
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oncall-prober
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oncall-prober
+        app.kubernetes.io/component: web
+      annotations:
+        sage/group: "ab5_statsenko"
+    spec:
+      containers:
+        - name: oncall-prober
+          image: stacenko763/oncall-prober
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9081
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9081
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9081
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /metrics
+              port: 9081
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          env:
+            - name: ONCALL_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: oncall-prober-configmap
+                  key: ONCALL_URL
+            - name: SCRAPE_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: oncall-prober-configmap
+                  key: SCRAPE_INTERVAL
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: oncall-prober-configmap
+                  key: LOG_LEVEL
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: oncall-prober-configmap
+                  key: METRICS_PORT
+            - name: ONCALL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oncall-prober-secret
+                  key: ONCALL_USERNAME
+            - name: ONCALL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oncall-prober-secret
+                  key: ONCALL_PASSWORD

@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oncall-prober-configmap
+data:
+  ONCALL_URL: "http://oncall-service:8080"
+  SCRAPE_INTERVAL: "30"
+  LOG_LEVEL: "DEBUG"
+  METRICS_PORT: "9081"
+    

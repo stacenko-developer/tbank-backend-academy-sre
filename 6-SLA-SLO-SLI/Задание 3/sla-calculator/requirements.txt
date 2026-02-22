@@ -1,0 +1,5 @@
+environs==9.5.0
+marshmallow==3.19.0
+requests==2.31.0
+prometheus-client==0.17.0
+mysql-connector-python==8.1.0

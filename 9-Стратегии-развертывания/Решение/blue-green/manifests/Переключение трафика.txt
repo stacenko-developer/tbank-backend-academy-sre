@@ -1,0 +1,21 @@
+kubectl patch service my-app-service -n st-ab5-statsenko -p '{"spec":{"selector":{"deployment":"blue"}}}'
+
+kubectl edit service my-app-service -n st-ab5-statsenko
+
+kubectl port-forward my-app-v2-7b9c8d6f54-jkl78 8080:8080
+
+while true; do
+    curl -s http://my-app.st-ab5-statsenko.ingress.sre-ab.ru/
+    sleep 0.1
+done
+
+sum by (pod) (
+  label_replace(
+    rate(http_requests_total{app=~"my-app-5c88fff695-2z7xk", namespace="$namespace"}[1m]),
+    "pod",
+    "$1",
+    "pod",
+    "my-app-(.{10}).*"
+  )
+)
+

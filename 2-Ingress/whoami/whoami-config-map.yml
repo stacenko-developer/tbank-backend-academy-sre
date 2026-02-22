@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: whoami-config
+  namespace: st-ab5-statsenko
+data:
+  default.conf: |
+    server {
+        listen 80 default_server;
+        server_name _;
+        
+        default_type text/plain;
+        
+        location / {
+            return 200 'You are Artem from ab5\n';
+        }
+    }

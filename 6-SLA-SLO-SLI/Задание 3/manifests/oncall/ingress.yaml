@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oncall-ingress
+  namespace: st-ab5-statsenko
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: oncall.st-ab5-statsenko.ingress.sre-ab.ru
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: oncall-service
+                port:
+                  number: 8080

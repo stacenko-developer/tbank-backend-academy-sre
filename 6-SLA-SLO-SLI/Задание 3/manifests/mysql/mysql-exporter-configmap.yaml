@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-exporter-configmap
+  namespace: st-ab5-statsenko
+data:
+  my.cnf: |
+    [client]
+    user = root
+    password = 1234
+    host = 127.0.0.1
+    port = 3306

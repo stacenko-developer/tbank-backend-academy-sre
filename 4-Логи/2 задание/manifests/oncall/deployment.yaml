@@ -1,0 +1,160 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oncall
+  namespace: st-ab5-statsenko
+  labels:
+    app.kubernetes.io/name: oncall
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oncall
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oncall
+        app.kubernetes.io/component: web
+      annotations:
+        sage/group: "ab5_statsenko"
+    spec:
+      containers:
+        - name: oncall
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          image: knucksie/sre-ab-oncall:0.1
+          env:
+            - name: DOCKER_DB_BOOTSTRAP
+              value: "1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8080
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8080
+            failureThreshold: 3
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8080
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: oncall-config
+              mountPath: /home/oncall/config/config.yaml
+              subPath: oncall.conf
+              readOnly: true
+            - name: nginx-logs
+              mountPath: /home/oncall/var/log/nginx
+            - name: uwsgi-logs
+              mountPath: /home/oncall/var/log/uwsgi
+        - name: log-processor
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          image: python:3.9-alpine
+          command: ["/bin/sh"]
+          args: 
+          - "-c"
+          - |
+            cat > /tmp/log_processor.py << 'EOF'
+            #!/usr/bin/env python3
+            import sys, json, time, re
+            from datetime import datetime
+            
+            error_log_level = "ERROR"
+            warning_log_level = "WARN"
+            info_log_level = "INFO"
+            
+            log_level_patterns = [
+                (re.compile(r'\[error\]|\berror\b', re.IGNORECASE), error_log_level),
+                (re.compile(r'\[warn\]|\bwarn\b', re.IGNORECASE), warning_log_level),
+                (re.compile(r'\[info\]|\binfo\b', re.IGNORECASE), info_log_level)
+            ]
+            
+            pattern_5xx_with_spaces = re.compile(r'\s5\d\d\s')
+            pattern_5xx_with_brackets = re.compile(r'\[5\d\d\]')
+            pattern_4xx_with_spaces = re.compile(r'\s4\d\d\s')
+            pattern_4xx_with_brackets = re.compile(r'\[4\d\d\]')
+            timestamp_format = "%Y-%m-%dT%H:%M:%S.%fZ"
+            
+            group = "ab5_statsenko"
+            system = "oncall-app"
+            env = "prod"
+            inst = "oncall.st-ab5-statsenko.ingress.sre-ab.ru"
+            
+            def detect_log_level(message):
+                for pattern, level in log_level_patterns:
+                    if pattern.search(message):
+                        return level
+                        
+                if (pattern_5xx_with_spaces.search(message) or
+                   pattern_5xx_with_brackets.search(message)):
+                    return error_log_level
+                    
+                if (pattern_4xx_with_spaces.search(message) or
+                   pattern_4xx_with_brackets.search(message)):
+                    return warning_log_level
+                
+                return info_log_level
+            
+            log_type = sys.argv[1]
+            while True:
+                line = sys.stdin.readline()
+                if line.strip():
+                    log_entry = {
+                        "message": line.strip(),
+                        "group": group,
+                        "system": system,
+                        "timestamp": datetime.utcnow().strftime(timestamp_format),
+                        "level": detect_log_level(line.strip()),
+                        "env": env,
+                        "inst": inst,
+                        "log_type": log_type
+                    }
+                
+                    print(json.dumps(log_entry))
+                    sys.stdout.flush()
+            EOF
+            tail -F /nginx-logs/access.log | python3 /tmp/log_processor.py nginx-access &
+            tail -F /nginx-logs/error.log | python3 /tmp/log_processor.py nginx-error &
+            tail -F /nginx-logs/hc_access.log | python3 /tmp/log_processor.py nginx-hc-access &
+            tail -F /uwsgi-logs/access.log | python3 /tmp/log_processor.py uwsgi-access &
+            tail -F /uwsgi-logs/error.log | python3 /tmp/log_processor.py uwsgi-error &
+            wait
+          volumeMounts:
+            - name: nginx-logs
+              mountPath: /nginx-logs
+            - name: uwsgi-logs
+              mountPath: /uwsgi-logs
+      volumes:
+        - name: oncall-config
+          configMap:
+            name: oncall
+        - name: nginx-logs
+          emptyDir: {}
+        - name: uwsgi-logs
+          emptyDir: {}

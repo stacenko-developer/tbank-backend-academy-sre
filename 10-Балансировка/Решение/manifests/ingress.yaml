@@ -1,0 +1,21 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress
+  namespace: st-ab5-statsenko
+  annotations:
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$http_x_user_id"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: my-app.st-ab5-statsenko.ingress.sre-ab.ru
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app-service
+                port:
+                  number: 8080

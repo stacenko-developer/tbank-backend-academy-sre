@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oncall-sla-calculator-configmap
+data:
+  SAGE_API_URL: "https://sage.sre-ab.ru/mage/api"
+  SCRAPE_INTERVAL: "60"
+  LOG_LEVEL: "DEBUG"
+  METRICS_PORT: "9082"
+  MYSQL_HOST: "oncall-mysql"
+  MYSQL_PORT: "3306"
+  MYSQL_DB_NAME: "sla"
+  SUCCESS_REMOVE_TEAM_PERCENT_SLA: "99"
+  P98_CREATION_TEAM_DURATION_MILLIS_SLA: "40"
+    
